@@ -1,0 +1,139 @@
+---
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+pacman::p_load(ggplot2,dplyr,tidyr,ggmap,geomtextpath,patchwork,ggdensity)
+```
+
+# Título del proyecto
+
+Presentación de la actividad sísmica por zonas en la Ciudad de México, CDMX
+#### Objetivo 
+Informar sobre las áreas con niveles de riesgo sísmico, que van desde bajo hasta alto, según los datos del Atlas de
+Riesgo Sísmico, suministrados por el portal de datos abiertos del
+gobierno de la Ciudad de México.
+
+#### Introducción
+
+Al momento de comprar, vender,rentar e incluso construir una propiedad siempre tenemos que tener en mente varios factores, desde lo estético hasta lo estructural. Los factores de riesgo en una zona de alto índice sísmico como la ciudad de México es ya algo totalmente a considerar PARA habitar una propiedad por lo que, teniendo en cuenta el grado de riesgo por zona se hace imperante conocer para evaluar los posibles riesgos asociados con la construcción en diferentes zonas y tomar medidas adicionales de seguridad en áreas de mayor riesgo
+
+#### Desarrollo
+
+Consideramos un Data Set provisto por Portal de Datos Abiertos del Gobierno de la CDMX el cual incluía coordenadas de geolocalización, niveles de riesgo sísmico, área superficial de dicha zona, logramos hacer un análisis gráfico para poder llegar a presentarlo a una empresa de construcción o bienes raíces para que tomen en cuenta los diferentes factores de riesgo. 
+
+Se usó una API de Google la cual nos permitió obtener el mapa directamente desde Google Maps y una API de Geocoding para los domicilios y coordenadas geográficas. 
+
+
+AIzaSyBMaRsaisrX1cOlXTWz8565a6TZc5rWj88
+
+```{r}
+data_cdmx <- read.csv("atlas-de-riesgo-sismico.csv", header = TRUE)
+
+```
+
+```{r}
+# Instalar y cargar las bibliotecas necesarias
+install.packages("leaflet")
+install.packages("leaflet.extras")
+library(leaflet)
+library(leaflet.extras)
+```
+
+```{r}
+#Se lee y se guarda la Google API key
+register_google(key = "AIzaSyBMaRsaisrX1cOlXTWz8565a6TZc5rWj88")
+
+col_id <- data_cdmx$id
+id_total <-c(col_id)
+
+coords_2d <- data_cdmx$geo_point_2d
+geo_strings <- as.character(coords_2d)
+
+intensidad_1 <-data_cdmx$intensidad
+intensidad_total <- as.character(intensidad_1)
+# Define tu dataframe
+tu_data_frame <- data.frame(
+  id = c(id_total),
+  geo_point_2d = c(geo_strings),
+  #geo_point_2d = c("19.4774588726,-99.214475378", "19.4840766322,-99.0979827502", "19.5219195307,-99.1340171776", "19.3139677776,-99.1267177657", "19.2904571016,-99.1799931782"),
+  intensidad = c(intensidad_total)
+)
+
+# Divide la columna 'geo_point_2d' en 'latitud' y 'longitud'
+tu_data_frame <- separate(tu_data_frame, geo_point_2d, into = c("latitud", "longitud"), sep = ",")
+
+# Convierte 'latitud' y 'longitud' a numérico
+tu_data_frame$latitud <- as.numeric(tu_data_frame$latitud)
+tu_data_frame$longitud <- as.numeric(tu_data_frame$longitud)
+
+# Obtiene el mapa de la Ciudad de México
+mapa_cdmx <- get_map(location = "Ciudad de México", zoom = 11)
+mapa_cdmx2 <- get_map(location = "Ciudad de México", zoom = 12)
+
+# Crea el gráfico de ggmap
+ggmap(mapa_cdmx) +
+  geom_point(data = tu_data_frame, aes(x = longitud, y = latitud, color = intensidad), size = 1) +
+  scale_color_manual(values = c("Medio" = "blue", "Alto"="yellow","Muy Alto" = "red")) +
+  labs(x = "Longitud", y = "Latitud", title = "Mapa de Intensidad en la Ciudad de México")
+
+
+#Se crea el gráfico de densidad 1 
+ggmap(mapa_cdmx) +
+  geom_point(data = tu_data_frame, aes(x = longitud, y = latitud, color = intensidad), size = 1) +
+  scale_color_manual(values = c("Medio" = "blue", "Alto"="yellow","Muy Alto" = "red")) +
+  labs(x = "Longitud", y = "Latitud", title = "Mapa de Intensidad en la Ciudad de México") +
+  geom_hdr(
+    aes(x = longitud, y = latitud, fill = intensidad), data = tu_data_frame,
+    alpha = .2
+  ) +
+  geomtextpath::geom_labeldensity2d(
+    aes(x = longitud, y = latitud, level = intensidad),
+    data = tu_data_frame, stat = "hdr_lines", size = 1, boxcolour = NA
+  ) +
+  scale_fill_brewer(palette = "YlOrRd") +
+  theme(legend.position = "none")
+
+#Se crea el gráfico de densidad 2 zoom
+ggmap(mapa_cdmx2) +
+  geom_point(data = tu_data_frame, aes(x = longitud, y = latitud, color = intensidad), size = 1) +
+  scale_color_manual(values = c("Medio" = "blue", "Alto"="yellow","Muy Alto" = "red")) +
+  labs(x = "Longitud", y = "Latitud", title = "Mapa de Intensidad en la Ciudad de México") +
+  geom_hdr(
+    aes(x = longitud, y = latitud, fill = intensidad), data = tu_data_frame,
+    alpha = .2
+  ) +
+  geomtextpath::geom_labeldensity2d(
+    aes(x = longitud, y = latitud, level = intensidad),
+    data = tu_data_frame, stat = "hdr_lines", size = 1, boxcolour = NA
+  ) +
+  scale_fill_brewer(palette = "YlOrRd") +
+  theme(legend.position = "none")
+
+
+
+```
+
+####Otros detalles
+El conjunto de datos recolectados da también breves descripciones de por qué existe un peligro en esa zona determinada. 
+Como un ejemplo sería obtener un cierto conjunto de coordenadas como:
+19.2569441391,-99.052578288
+El cual pertenece a una región de Xochimilco cuya descripción es:
+"AG localizado en la zona de contacto entre los suelos firmes y los depósitos lacustres."
+
+####Principal uso
+Para ser más amigable con el usuario, se puede pedir que se use Google maps para ubicar la zona en la que se quiere comprar, vender o construir y, en base a eso, acercarnos lo más posible y nosotros obtener las coordenadas más cercanas a la zona.
+
+El uso de una aplicación o un programa simple se puede usar para determinar el riesgo y una breve descripción del por qué se considera peigrosa así como proporcionar la información a elementos de desarrollo urbano y protección civil para tener esta información en cuenta a la hora de arpobar una construcción. 
+
+####áreas de oportunidad
+- Relacionar 
+
+####Bibliografía
+Data Set obtenido : https://datos.cdmx.gob.mx/dataset/atlas-de-riesgo-sismico/resource/4f23c6c5-1b2b-410e-8589-a720d7b3db58
+Fuente de información sobre gráficos de densidad : https://cran.r-project.org/web/packages/ggmap/readme/README.html
+
+
+
